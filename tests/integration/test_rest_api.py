@@ -21,7 +21,7 @@ AUTH = {"Authorization": "Bearer dev-test-token"}
 
 @pytest.fixture
 def api():
-    app = create_app(Settings(_env_file=None, api_token="dev-test-token", api_user_id="owner"))
+    app = create_app(Settings(_env_file=None, redis_enabled=False, api_token="dev-test-token", api_user_id="owner"))
     service = AsyncMock(spec=AgentService)
     memory = AsyncMock(spec=MemoryManager)
     app.dependency_overrides[get_agent_service] = lambda: service
@@ -121,7 +121,7 @@ def test_protected_routes_require_authentication(api, header):
 
 
 def test_unconfigured_token_keeps_protected_routes_closed():
-    with TestClient(create_app(Settings(_env_file=None, api_token=None))) as client:
+    with TestClient(create_app(Settings(_env_file=None, redis_enabled=False, api_token=None))) as client:
         assert client.get("/health").status_code == 200
         assert client.get("/memory").status_code == 503
 
@@ -138,7 +138,7 @@ def test_storage_failure_returns_service_unavailable(api):
 
 
 def test_evaluations_uses_authenticated_principal_and_pagination():
-    app = create_app(Settings(_env_file=None, api_token="dev-test-token", api_user_id="owner"))
+    app = create_app(Settings(_env_file=None, redis_enabled=False, api_token="dev-test-token", api_user_id="owner"))
     evaluations = AsyncMock(spec=EvaluationRepository)
     evaluations.list.return_value = []
     app.dependency_overrides[get_evaluations] = lambda: evaluations

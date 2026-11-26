@@ -19,6 +19,12 @@ class Settings(BaseSettings):
         default=RedisDsn("redis://localhost:6379/0"), repr=False
     )
 
+    redis_enabled: bool = True
+    redis_key_prefix: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")] = "agent-harness"
+    rate_limit_requests: Annotated[int, Field(ge=1, le=1_000_000)] = 60
+    rate_limit_window_seconds: Annotated[int, Field(ge=1, le=3600)] = 60
+    weather_cache_ttl_seconds: Annotated[int, Field(ge=1, le=3600)] = 120
+
     max_agent_steps: Annotated[int, Field(gt=0)] = 10
     max_tool_calls: Annotated[int, Field(ge=0)] = 5
     approval_required_tools: frozenset[str] = frozenset()

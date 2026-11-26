@@ -19,7 +19,7 @@ class Principal:
     permissions: frozenset[str]
 
 
-def require_principal(
+async def require_principal(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
 ) -> Principal:
@@ -31,6 +31,11 @@ def require_principal(
         raise HTTPException(
             status_code=401, detail="Invalid or missing bearer token.",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+    redis = request.app.state.redis_services if settings.redis_enabled else None
+    if redis is not None and (retry_after := await redis.retry_after(settings.api_user_id)) is not None:
+        raise HTTPException(
+            status_code=429, detail="Rate limit exceeded.", headers={"Retry-After": str(retry_after)},
         )
     return Principal(settings.api_user_id, BUILTIN_PERMISSIONS)
 

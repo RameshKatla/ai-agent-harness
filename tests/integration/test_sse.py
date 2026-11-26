@@ -70,7 +70,7 @@ def test_http_stream_returns_ordered_trajectory_and_persists_the_run():
                 output = '{"decision":{"action":"tool","name":"calculator","arguments":{"expression":"25 * 4"}}}'
             return httpx.Response(200, stream=Frames([output[:17], output[17:]]))
 
-        settings = Settings(_env_file=None, api_token="streaming-test", api_user_id="owner")
+        settings = Settings(_env_file=None, redis_enabled=False, api_token="streaming-test", api_user_id="owner")
         repo = AsyncMock(spec=AgentRunRepository)
         async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as model_http:
             executor = AgentExecutor(

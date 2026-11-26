@@ -11,3 +11,4 @@ alembic>=1.13,<2
 asyncpg>=0.31,<1
 pgvector>=0.4,<1
 anyio>=4,<5
+redis>=6,<8

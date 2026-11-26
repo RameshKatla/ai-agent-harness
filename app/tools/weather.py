@@ -2,6 +2,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from app.core.exceptions import ToolError, ToolInputError, TransientToolError
+from app.core.redis import RedisServices
 from app.tools.registry import RetryPolicy, Tool, ToolInput
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
@@ -42,6 +43,17 @@ class Forecast(BaseModel):
     daily: DailyWeather
 
 
+class WeatherResult(BaseModel):
+    location: str
+    timezone: str
+    observed_at: str
+    temperature_celsius: float
+    precipitation_mm: float
+    weather_code: int
+    forecast_date: str
+    max_precipitation_probability_percent: int | None
+
+
 async def _get[Response: BaseModel](
     http: httpx.AsyncClient, url: str, params: dict[str, str | int | float],
     schema: type[Response],
@@ -65,8 +77,15 @@ async def _get[Response: BaseModel](
         raise ToolError("The weather provider returned an invalid response.") from None
 
 
-def weather_tool(http: httpx.AsyncClient) -> Tool[WeatherInput]:
+def weather_tool(
+    http: httpx.AsyncClient, *, cache: RedisServices | None = None, cache_ttl: int = 120,
+) -> Tool[WeatherInput]:
     async def forecast(arguments: WeatherInput) -> dict[str, object]:
+        key = " ".join(arguments.location.split()).casefold()
+        if cache is not None:
+            cached = await cache.get_cached("weather-v1", key, WeatherResult)
+            if cached is not None:
+                return cached.model_dump()
         locations = await _get(
             http, GEOCODING_URL, {"name": arguments.location, "count": 1}, Locations
         )
@@ -86,18 +105,21 @@ def weather_tool(http: httpx.AsyncClient) -> Tool[WeatherInput]:
             },
             Forecast,
         )
-        return {
-            "location": ", ".join(dict.fromkeys(
+        result = WeatherResult(
+            location=", ".join(dict.fromkeys(
                 name for name in (place.name, place.admin1, place.country) if name
             )),
-            "timezone": weather.timezone,
-            "observed_at": weather.current.time,
-            "temperature_celsius": weather.current.temperature_2m,
-            "precipitation_mm": weather.current.precipitation,
-            "weather_code": weather.current.weather_code,
-            "forecast_date": weather.daily.time[0],
-            "max_precipitation_probability_percent": weather.daily.precipitation_probability_max[0],
-        }
+            timezone=weather.timezone,
+            observed_at=weather.current.time,
+            temperature_celsius=weather.current.temperature_2m,
+            precipitation_mm=weather.current.precipitation,
+            weather_code=weather.current.weather_code,
+            forecast_date=weather.daily.time[0],
+            max_precipitation_probability_percent=weather.daily.precipitation_probability_max[0],
+        )
+        if cache is not None:
+            await cache.set_cached("weather-v1", key, result, ttl=cache_ttl)
+        return result.model_dump()
 
     return Tool(
         name="weather",

@@ -34,11 +34,15 @@ EventSink = Callable[[AgentEvent], Awaitable[None]]
 
 
 class RunEvents:
-    def __init__(self, run_id: UUID, thread_id: str, user_id: str, sink: EventSink | None) -> None:
+    def __init__(
+        self, run_id: UUID, thread_id: str, user_id: str, sink: EventSink | None,
+        *, observer: EventSink | None = None,
+    ) -> None:
         self.run_id = run_id
         self.thread_id = thread_id
         self.user_id = user_id
         self._sink = sink
+        self._observer = observer
         self._sequence = 0
         self._step = 0
 
@@ -65,3 +69,5 @@ class RunEvents:
             logger.info("Agent event", extra={
                 "agent_event": item.model_dump(mode="json", exclude={"metadata", "error", "tool"}),
             })
+        if self._observer is not None:
+            await self._observer(item)

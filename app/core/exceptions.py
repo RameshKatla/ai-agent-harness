@@ -40,3 +40,7 @@ class ApprovalConflictError(AgentError):
 
 class EvaluationError(AgentError):
     """An evaluation dataset or run could not be processed."""
+
+
+class RedisUnavailableError(AgentError):
+    """Redis could not enforce a required operation."""

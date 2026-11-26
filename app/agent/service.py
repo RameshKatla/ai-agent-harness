@@ -10,19 +10,22 @@ from app.agent.executor import AgentExecutor
 from app.agent.state import AgentState
 from app.core.exceptions import AgentError, ApprovalConflictError
 from app.db.repositories import AgentRunRepository
-from app.observability.events import AgentEvent, RunEvents
+from app.observability.events import AgentEvent, EventSink, RunEvents
 from app.schemas.agent import AgentRunResponse
 
 
 class AgentService:
-    def __init__(self, executor: AgentExecutor, runs: AgentRunRepository) -> None:
+    def __init__(
+        self, executor: AgentExecutor, runs: AgentRunRepository, *, observer: EventSink | None = None,
+    ) -> None:
         self._executor = executor
         self._runs = runs
+        self._observer = observer
 
     async def run(
         self, *, user_id: str, thread_id: str | None, task: str, permissions: Collection[str],
     ) -> AgentRunResponse:
-        events = RunEvents(uuid4(), thread_id or str(uuid4()), user_id, sink=None)
+        events = RunEvents(uuid4(), thread_id or str(uuid4()), user_id, sink=None, observer=self._observer)
         return await self._run(events, task, permissions)
 
     async def _run(
@@ -69,7 +72,7 @@ class AgentService:
         self, *, user_id: str, thread_id: str | None, task: str, permissions: Collection[str],
     ) -> AsyncGenerator[AgentEvent | None, None]:
         queue: asyncio.Queue[AgentEvent | None] = asyncio.Queue(maxsize=32)
-        events = RunEvents(uuid4(), thread_id or str(uuid4()), user_id, queue.put)
+        events = RunEvents(uuid4(), thread_id or str(uuid4()), user_id, queue.put, observer=self._observer)
 
         async def produce() -> None:
             try:
@@ -107,7 +110,7 @@ class AgentService:
             if await self._runs.latest(user_id, thread_id) is None:
                 return None
             raise ApprovalConflictError("This approval is no longer pending.")
-        events = RunEvents(UUID(state["run_id"]), thread_id, user_id, sink=None)
+        events = RunEvents(UUID(state["run_id"]), thread_id, user_id, sink=None, observer=self._observer)
         started = perf_counter()
         result = await self._executor.resume(
             thread_id=thread_id, user_id=user_id, approval_id=str(approval_id),

@@ -49,7 +49,7 @@ async def exercise(case, *, flagged=True, **options):
             return httpx.Response(200, text=json.dumps(payload) + "\n")
         return httpx.Response(200, json=payload)
 
-    settings = Settings(_env_file=None, api_token="approval-test", api_user_id="owner", **options)
+    settings = Settings(_env_file=None, redis_enabled=False, api_token="approval-test", api_user_id="owner", **options)
     registry = ToolRegistry()
     registry.register(replace(CALCULATOR, requires_approval=flagged, implementation=calculate))
     repository = AsyncMock(spec=AgentRunRepository)

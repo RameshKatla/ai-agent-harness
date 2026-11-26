@@ -1,6 +1,6 @@
 import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, Request
@@ -14,7 +14,8 @@ from app.api.routes_evaluation import router as evaluation_router
 from app.api.routes_health import router as health_router
 from app.api.routes_memory import router as memory_router
 from app.core.config import Settings
-from app.core.exceptions import ApprovalConflictError, MemoryError, StorageError
+from app.core.exceptions import ApprovalConflictError, MemoryError, RedisUnavailableError, StorageError
+from app.core.redis import RedisServices
 from app.db.database import create_database_engine
 from app.db.repositories import AgentRunRepository, EvaluationRepository
 from app.llm.ollama_client import OllamaLLM
@@ -40,22 +41,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         configure_logging(config.log_level)
-        engine = create_database_engine(config)
-        try:
-            async with httpx.AsyncClient() as http:
-                llm = OllamaLLM(config, http)
-                memory = MemoryManager.using_database(
-                    config, engine, OllamaEmbedder(config, http), llm,
-                )
-                executor = AgentExecutor(config, llm, build_tool_registry(http), memory=memory)
-                app.state.memory_manager = memory
-                sessions = async_sessionmaker(engine)
-                app.state.agent_service = AgentService(executor, AgentRunRepository(sessions))
-                app.state.evaluations = EvaluationRepository(sessions)
-                logger.info("API started")
-                yield
-        finally:
-            await engine.dispose()
+        async with AsyncExitStack() as stack:
+            engine = create_database_engine(config)
+            stack.push_async_callback(engine.dispose)
+            redis = RedisServices.connect(config) if config.redis_enabled else None
+            app.state.redis_services = redis
+            if redis is not None:
+                stack.push_async_callback(redis.close)
+            http = await stack.enter_async_context(httpx.AsyncClient())
+            llm = OllamaLLM(config, http)
+            memory = MemoryManager.using_database(
+                config, engine, OllamaEmbedder(config, http), llm,
+            )
+            registry = build_tool_registry(
+                http, cache=redis, weather_cache_ttl=config.weather_cache_ttl_seconds,
+            )
+            executor = AgentExecutor(config, llm, registry, memory=memory)
+            app.state.memory_manager = memory
+            sessions = async_sessionmaker(engine)
+            app.state.agent_service = AgentService(
+                executor, AgentRunRepository(sessions),
+                observer=redis.publish if redis is not None else None,
+            )
+            app.state.evaluations = EvaluationRepository(sessions)
+            logger.info("API started")
+            yield
 
     app = FastAPI(title="AI Agent Harness", lifespan=lifespan)
     app.state.settings = config
@@ -65,5 +75,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(evaluation_router)
     app.add_exception_handler(MemoryError, storage_error)
     app.add_exception_handler(StorageError, storage_error)
+    app.add_exception_handler(RedisUnavailableError, storage_error)
     app.add_exception_handler(ApprovalConflictError, approval_conflict)
     return app

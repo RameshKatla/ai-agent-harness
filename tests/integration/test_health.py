@@ -7,7 +7,7 @@ from app.main import create_app
 
 @pytest.mark.parametrize(("path", "status"), [("/health", "ok"), ("/ready", "ready")])
 def test_health_routes(path, status):
-    with TestClient(create_app(Settings(_env_file=None))) as client:
+    with TestClient(create_app(Settings(_env_file=None, redis_enabled=False))) as client:
         response = client.get(path)
 
     assert response.status_code == 200

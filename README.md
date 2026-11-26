@@ -27,9 +27,8 @@ make check
 make test
 ```
 
-`/health` checks HTTP liveness. In Phase 1, `/ready` reports whether the API
-can serve requests. Dependency checks will be added as services are wired in.
-The application emits JSON logs to standard error.
+`/health` checks HTTP liveness. `/ready` returns HTTP 503 when Redis is
+enabled and unreachable. The application emits JSON logs to standard error.
 
 ## Phase 2 local Ollama
 
@@ -265,3 +264,32 @@ data from regular interactions. Retrieve that user's results with authenticated
 The Phase 12 dataset includes 20 cases covering direct answers, calculator
 operations, and timezone lookups. The pytest suite separately checks weather
 reasoning against a fixed forecast.
+
+## Phase 13 Redis
+
+Start Redis and set `REDIS_URL`. Redis is enabled by default. Assign each
+deployment its own `REDIS_KEY_PREFIX` if it shares a Redis server. Set
+`REDIS_ENABLED=false` for local development without Redis.
+
+- Authenticated REST and SSE requests share a per-user request counter across
+  API instances. The default allows 60 requests per 60-second window. Configure
+  `RATE_LIMIT_REQUESTS` and `RATE_LIMIT_WINDOW_SECONDS` to change it.
+  A full window returns HTTP 429 with `Retry-After`. If Redis can't enforce
+  the limit, protected requests return HTTP 503. Health checks remain public.
+- Successful public weather lookups are cached by normalized location for
+  `WEATHER_CACHE_TTL_SECONDS` (120 seconds by default). The weather tool calls
+  the provider on a cache miss or cache failure.
+- Redis Pub/Sub carries start, approval, error, and completion notifications
+  for internal consumers. Use `RedisServices.subscribe(user_id, thread_id)`
+  as an async context manager to receive notifications for a thread. Messages
+  omit prompts, model output, and tool results. Publication is best effort
+  and subscribers receive live notifications only. SSE still carries the
+  request's detailed trajectory.
+
+PostgreSQL stores durable runs and memories. LangGraph checkpoints hold
+short-term thread state. For Redis integration tests, set `REDIS_URL` for
+a test server and run:
+
+```sh
+RUN_REDIS_TESTS=1 python -m pytest tests/integration/test_redis.py
+```

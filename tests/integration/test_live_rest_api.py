@@ -22,7 +22,10 @@ pytestmark = [
 
 def test_live_rest_agent_and_memory():
     user_id, other_id = str(uuid4()), str(uuid4())
-    settings = Settings(api_token="live-test-token", api_user_id=user_id)
+    settings = Settings(
+        api_token="live-test-token", api_user_id=user_id,
+        redis_enabled=os.getenv("RUN_REDIS_TESTS") == "1",
+    )
     headers = {"Authorization": "Bearer live-test-token"}
     try:
         with TestClient(create_app(settings), headers=headers) as client:
