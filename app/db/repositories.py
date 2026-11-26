@@ -9,8 +9,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.exceptions import MemoryError, StorageError
-from app.db.models import AgentRun, Episode, SemanticMemory, Thread, User
+from app.db.models import AgentRun, Episode, Evaluation, SemanticMemory, Thread, User
 from app.schemas.agent import AgentRunResponse
+from app.schemas.evaluation import EvaluationResult, StoredEvaluation
 from app.schemas.memory import EpisodeRecord, MemoryRecord
 
 
@@ -148,3 +149,34 @@ class AgentRunRepository:
         except (SQLAlchemyError, OSError):
             raise StorageError("Could not read the agent run.") from None
         return AgentRunResponse.model_validate(state) if state is not None else None
+
+
+class EvaluationRepository:
+    def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
+        self._sessions = sessions
+
+    async def save(self, result: EvaluationResult) -> None:
+        try:
+            async with self._sessions.begin() as session:
+                session.add(Evaluation(
+                    run_id=result.run_id, case_id=result.case_id,
+                    metrics=result.model_dump(mode="json", exclude={"case_id", "run_id"}),
+                ))
+        except (SQLAlchemyError, OSError):
+            raise StorageError("Could not save the evaluation.") from None
+
+    async def list(self, user_id: str, *, limit: int, offset: int) -> list[StoredEvaluation]:
+        stmt = (
+            select(Evaluation).join(AgentRun, Evaluation.run_id == AgentRun.id)
+            .where(AgentRun.user_id == user_id)
+            .order_by(Evaluation.created_at.desc(), Evaluation.id.desc())
+            .limit(limit).offset(offset)
+        )
+        try:
+            async with self._sessions() as session:
+                rows = await session.scalars(stmt)
+                return [StoredEvaluation(
+                    **row.metrics, id=row.id, run_id=row.run_id, case_id=row.case_id, created_at=row.created_at,
+                ) for row in rows]
+        except (SQLAlchemyError, OSError):
+            raise StorageError("Could not read evaluations.") from None

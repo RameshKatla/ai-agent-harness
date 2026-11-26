@@ -36,3 +36,7 @@ class StorageError(AgentError):
 
 class ApprovalConflictError(AgentError):
     """The requested approval transition conflicts with the current thread state."""
+
+
+class EvaluationError(AgentError):
+    """An evaluation dataset or run could not be processed."""

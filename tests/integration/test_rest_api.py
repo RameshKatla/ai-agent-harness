@@ -6,13 +6,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.agent.service import AgentService
-from app.api.dependencies import BUILTIN_PERMISSIONS, get_agent_service, get_memory_manager
+from app.api.dependencies import get_agent_service, get_evaluations, get_memory_manager
 from app.core.config import Settings
 from app.core.exceptions import MemoryError, StorageError
+from app.db.repositories import EvaluationRepository
 from app.main import create_app
 from app.memory.manager import MemoryManager
 from app.schemas.agent import AgentRunResponse
 from app.schemas.memory import MemoryRecord
+from app.tools import BUILTIN_PERMISSIONS
 
 AUTH = {"Authorization": "Bearer dev-test-token"}
 
@@ -132,3 +134,16 @@ def test_storage_failure_returns_service_unavailable(api):
     response = client.get("/memory")
     assert response.status_code == 503
     assert response.json() == {"detail": "The memory database operation failed."}
+
+
+
+def test_evaluations_uses_authenticated_principal_and_pagination():
+    app = create_app(Settings(_env_file=None, api_token="dev-test-token", api_user_id="owner"))
+    evaluations = AsyncMock(spec=EvaluationRepository)
+    evaluations.list.return_value = []
+    app.dependency_overrides[get_evaluations] = lambda: evaluations
+    with TestClient(app) as client:
+        assert client.get("/evaluations").status_code == 401
+        assert client.get("/evaluations?limit=0", headers=AUTH).status_code == 422
+        assert client.get("/evaluations?limit=2&offset=1", headers=AUTH).json() == []
+    evaluations.list.assert_awaited_once_with("owner", limit=2, offset=1)

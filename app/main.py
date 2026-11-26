@@ -10,12 +10,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.agent.executor import AgentExecutor
 from app.agent.service import AgentService
 from app.api.routes_agent import router as agent_router
+from app.api.routes_evaluation import router as evaluation_router
 from app.api.routes_health import router as health_router
 from app.api.routes_memory import router as memory_router
 from app.core.config import Settings
 from app.core.exceptions import ApprovalConflictError, MemoryError, StorageError
 from app.db.database import create_database_engine
-from app.db.repositories import AgentRunRepository
+from app.db.repositories import AgentRunRepository, EvaluationRepository
 from app.llm.ollama_client import OllamaLLM
 from app.memory.manager import MemoryManager
 from app.memory.semantic import OllamaEmbedder
@@ -48,9 +49,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 )
                 executor = AgentExecutor(config, llm, build_tool_registry(http), memory=memory)
                 app.state.memory_manager = memory
-                app.state.agent_service = AgentService(
-                    executor, AgentRunRepository(async_sessionmaker(engine)),
-                )
+                sessions = async_sessionmaker(engine)
+                app.state.agent_service = AgentService(executor, AgentRunRepository(sessions))
+                app.state.evaluations = EvaluationRepository(sessions)
                 logger.info("API started")
                 yield
         finally:
@@ -61,6 +62,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(agent_router)
     app.include_router(memory_router)
+    app.include_router(evaluation_router)
     app.add_exception_handler(MemoryError, storage_error)
     app.add_exception_handler(StorageError, storage_error)
     app.add_exception_handler(ApprovalConflictError, approval_conflict)

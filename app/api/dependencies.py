@@ -6,10 +6,11 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.agent.service import AgentService
+from app.db.repositories import EvaluationRepository
 from app.memory.manager import MemoryManager
+from app.tools import BUILTIN_PERMISSIONS
 
 bearer = HTTPBearer(auto_error=False)
-BUILTIN_PERMISSIONS = frozenset({"calculator:use", "datetime:use", "weather:use"})
 
 
 @dataclass(frozen=True)
@@ -45,3 +46,10 @@ def get_memory_manager(request: Request) -> MemoryManager:
 Authenticated = Annotated[Principal, Depends(require_principal)]
 AgentDependency = Annotated[AgentService, Depends(get_agent_service)]
 MemoryDependency = Annotated[MemoryManager, Depends(get_memory_manager)]
+
+
+def get_evaluations(request: Request) -> EvaluationRepository:
+    return request.app.state.evaluations
+
+
+EvaluationDependency = Annotated[EvaluationRepository, Depends(get_evaluations)]

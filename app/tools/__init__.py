@@ -6,6 +6,9 @@ from app.tools.registry import ToolRegistry
 from app.tools.weather import weather_tool
 
 
+BUILTIN_PERMISSIONS = frozenset({"calculator:use", "datetime:use", "weather:use"})
+
+
 def build_tool_registry(http: httpx.AsyncClient) -> ToolRegistry:
     registry = ToolRegistry()
     registry.register(CALCULATOR)
