@@ -8,7 +8,7 @@ from anyio import CancelScope
 
 from app.agent.executor import AgentExecutor
 from app.agent.state import AgentState
-from app.core.exceptions import AgentError, ApprovalConflictError
+from app.core.exceptions import ApprovalConflictError, StorageError
 from app.db.repositories import AgentRunRepository
 from app.observability.events import AgentEvent, EventSink, RunEvents
 from app.schemas.agent import AgentRunResponse
@@ -78,7 +78,12 @@ class AgentService:
             try:
                 await self._run(events, task, permissions)
             except Exception as error:
-                message = str(error) if isinstance(error, AgentError) else "The agent stream failed."
+                if isinstance(error, ApprovalConflictError):
+                    message = "The thread is not ready for this approval action."
+                elif isinstance(error, StorageError):
+                    message = "The storage operation is temporarily unavailable."
+                else:
+                    message = "The agent stream failed."
                 await events.emit("agent_error", node="executor", success=False, error=message)
                 await events.emit(
                     "agent_complete", node="executor", success=False, metadata={"status": "failed"},

@@ -133,7 +133,11 @@ def test_storage_failure_returns_service_unavailable(api):
     assert client.get("/agent/work").status_code == 503
     response = client.get("/memory")
     assert response.status_code == 503
-    assert response.json() == {"detail": "The memory database operation failed."}
+    assert response.json() == {
+        "code": "memory_unavailable",
+        "detail": "The memory operation is temporarily unavailable.",
+        "request_id": response.headers["X-Request-ID"],
+    }
 
 
 

@@ -92,6 +92,7 @@ def test_http_stream_returns_ordered_trajectory_and_persists_the_run():
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/event-stream")
         assert response.headers["cache-control"] == "no-store"
+        assert response.headers["x-request-id"]
         events = list(parse_events(response.text.splitlines()))
         assert [item["event"] for item in events] == [
             "agent_start", "memory_retrieved", "agent_step", "llm_start", "llm_token",
@@ -173,7 +174,7 @@ def test_stream_reports_terminal_failure(failure):
         settings = Settings(_env_file=None)
         repo = AsyncMock(spec=AgentRunRepository)
         if failure == "storage":
-            repo.save.side_effect = StorageError("Could not save the agent run.")
+            repo.save.side_effect = StorageError("private upstream detail")
             response = httpx.Response(200, stream=Frames(["answer"]))
         else:
             response = httpx.Response(200, text='{"error":"private upstream detail"}\n')

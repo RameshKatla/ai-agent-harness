@@ -1,6 +1,10 @@
 import json
 import logging
+from contextvars import ContextVar
 from datetime import UTC, datetime
+
+
+request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
 
 
 class JsonFormatter(logging.Formatter):
@@ -13,6 +17,10 @@ class JsonFormatter(logging.Formatter):
         }
         if event := getattr(record, "agent_event", None):
             payload["agent_event"] = event
+        if request_id := request_id_context.get():
+            payload["request_id"] = request_id
+        if request := getattr(record, "http_request", None):
+            payload["http_request"] = request
         return json.dumps(payload)
 
 

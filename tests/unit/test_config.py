@@ -32,3 +32,10 @@ def test_invalid_settings(name, value):
         Settings(_env_file=None, **{name: value})
 
     assert (name,) in {item["loc"] for item in error.value.errors()}
+
+
+def test_secret_bearing_ollama_url_is_rejected_without_echoing_credentials():
+    with pytest.raises(ValidationError) as failure:
+        Settings(_env_file=None, ollama_base_url="http://user:private-password@ollama.test/")
+    assert "private-password" not in str(failure.value)
+    assert "cannot include credentials" in str(failure.value)

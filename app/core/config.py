@@ -1,13 +1,13 @@
 from typing import Annotated, Literal
 
-from pydantic import AnyHttpUrl, Field, RedisDsn, SecretStr
+from pydantic import AnyHttpUrl, Field, RedisDsn, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", frozen=True)
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", frozen=True, hide_input_in_errors=True)
 
-    ollama_base_url: AnyHttpUrl = AnyHttpUrl("http://localhost:11434")
+    ollama_base_url: AnyHttpUrl = Field(default=AnyHttpUrl("http://localhost:11434"), repr=False)
     ollama_model: Annotated[str, Field(min_length=1)] = "gemma4:4b"
     ollama_embedding_model: Annotated[str, Field(min_length=1)] = "nomic-embed-text"
     postgres_host: str = "localhost"
@@ -35,4 +35,14 @@ class Settings(BaseSettings):
     max_conversation_turns: Annotated[int, Field(ge=1, le=100)] = 20
     api_token: SecretStr | None = None
     api_user_id: Annotated[str, Field(min_length=1, max_length=255)] = "local"
+    api_allowed_tools: frozenset[Literal["calculator", "datetime", "weather"]] | None = None
+    max_request_body_bytes: Annotated[int, Field(ge=1, le=16 * 1024 * 1024)] = 256 * 1024
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+
+
+    @field_validator("ollama_base_url")
+    @classmethod
+    def validate_ollama_url(cls, url: AnyHttpUrl) -> AnyHttpUrl:
+        if url.username is not None or url.password is not None or url.query is not None or url.fragment is not None:
+            raise ValueError("The Ollama URL cannot include credentials, a query, or a fragment.")
+        return url

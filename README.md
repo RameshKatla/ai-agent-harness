@@ -333,3 +333,23 @@ regression dataset inside the stack:
 ```sh
 docker compose exec api python scripts/run_evals.py
 ```
+
+## Phase 15 API security
+
+Set `API_TOKEN` to a high-entropy bearer token. Protected routes resolve the
+principal from the configured authentication backend. The built-in backend
+maps one token to `API_USER_ID`. Use `API_ALLOWED_TOOLS` to restrict the
+principal to a JSON array of built-in tool names. An empty array disables tool
+access. Approval and tool deadlines continue to apply to authorized calls.
+
+The API generates a new UUID for each HTTP request and returns it in
+`X-Request-ID`, including on SSE and error responses. Use that ID to find the
+matching structured logs. Managed run commands disable Uvicorn's raw access
+log. Application access logs use route templates and status codes.
+
+`MAX_REQUEST_BODY_BYTES` defaults to 262144 bytes. Larger requests, including
+chunked bodies, receive HTTP 413 before the route runs. Validation and HTTP
+errors return a structured object with `code`, `detail`, and `request_id`.
+Validation issues include their source and error code. Responses omit invalid
+values and internal exception text. Existing authentication challenges and
+rate-limit retry headers remain available.

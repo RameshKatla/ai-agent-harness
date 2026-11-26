@@ -33,7 +33,11 @@ def test_unavailable_redis_blocks_protected_requests_but_keeps_liveness(monkeypa
         assert client.get("/memory").status_code == 401
         response = client.get("/memory", headers=AUTH)
         assert response.status_code == 503
-        assert response.json() == {"detail": "Rate limiting is temporarily unavailable."}
+        assert response.json() == {
+            "code": "rate_limit_unavailable",
+            "detail": "Rate limiting is temporarily unavailable.",
+            "request_id": response.headers["X-Request-ID"],
+        }
     redis.aclose.assert_awaited_once()
 
 

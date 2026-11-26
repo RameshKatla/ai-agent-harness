@@ -7,4 +7,4 @@ check:
 	python -m compileall -q app tests
 
 run:
-	python -m uvicorn app.main:create_app --factory
+	python -m uvicorn app.main:create_app --factory --no-access-log

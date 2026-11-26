@@ -1,43 +1,40 @@
-from dataclasses import dataclass
-from secrets import compare_digest
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.agent.service import AgentService
+from app.core.security import Authenticator, Principal
 from app.db.repositories import EvaluationRepository
 from app.memory.manager import MemoryManager
-from app.tools import BUILTIN_PERMISSIONS
 
 bearer = HTTPBearer(auto_error=False)
 
 
-@dataclass(frozen=True)
-class Principal:
-    user_id: str
-    permissions: frozenset[str]
+def get_authenticator(request: Request) -> Authenticator:
+    return request.app.state.authenticator
 
 
 async def require_principal(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+    authenticator: Annotated[Authenticator, Depends(get_authenticator)],
 ) -> Principal:
     settings = request.app.state.settings
-    token = settings.api_token.get_secret_value() if settings.api_token else ""
-    if not token:
+    if not authenticator.configured:
         raise HTTPException(status_code=503, detail="API access is not configured.")
-    if credentials is None or not compare_digest(credentials.credentials.encode(), token.encode()):
+    principal = await authenticator.authenticate(credentials.credentials) if credentials is not None else None
+    if principal is None:
         raise HTTPException(
             status_code=401, detail="Invalid or missing bearer token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     redis = request.app.state.redis_services if settings.redis_enabled else None
-    if redis is not None and (retry_after := await redis.retry_after(settings.api_user_id)) is not None:
+    if redis is not None and (retry_after := await redis.retry_after(principal.user_id)) is not None:
         raise HTTPException(
             status_code=429, detail="Rate limit exceeded.", headers={"Retry-After": str(retry_after)},
         )
-    return Principal(settings.api_user_id, BUILTIN_PERMISSIONS)
+    return principal
 
 
 def get_agent_service(request: Request) -> AgentService:
