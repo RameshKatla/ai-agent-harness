@@ -67,6 +67,9 @@ def test_tool_result_reaches_model_and_plan_can_be_revised():
     schema = requests[0]["format"]
     assert schema["$defs"]["CalculatorInput"]["required"] == ["expression"]
     assert schema["$defs"]["ToolChoice0"]["properties"]["name"]["const"] == "calculator"
+    system_prompt = requests[1]["messages"][0]["content"]
+    assert "Tool results for the current turn:" in system_prompt
+    assert requests[1]["messages"][-1]["content"] in system_prompt
     assert json.loads(requests[1]["messages"][-1]["content"]) == {
         "tool": "calculator", "success": True, "result": 100,
     }

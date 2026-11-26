@@ -140,3 +140,29 @@ def test_runner_aggregates_and_preserves_details():
     assert report.results == saved
     assert "Success rate: 50%" in format_report(report)
     assert "FAIL bad" in format_report(report)
+
+
+
+def test_case_sensitive_answer_matching_for_formatting_tasks():
+    case = EvaluationCase(id="uppercase", input="Uppercase orchard.", expected="ORCHARD", case_sensitive=True)
+    base = trace() | {"tool_calls": [], "observations": [], "current_step": 1}
+    assert not passed(evaluate(case, base | {"final_answer": "orchard"}, 1))
+    assert passed(evaluate(case, base | {"final_answer": "ORCHARD"}, 1))
+
+
+def test_date_answer_must_match_successful_tool_observation():
+    case = EvaluationCase(
+        id="utc", input="What is the UTC date?", expected="UTC", tools=["datetime"],
+        answer_from_tool_field="date",
+    )
+    base = trace() | {
+        "final_answer": "UTC 2026-11-26",
+        "tool_calls": [{"name": "datetime", "arguments": {"timezone": "UTC"}}],
+        "observations": [{
+            "tool": "datetime", "result": {"date": "2026-11-26"}, "success": True, "attempts": [],
+        }],
+    }
+    assert passed(evaluate(case, base, 1))
+    assert not evaluate(case, base | {"final_answer": "UTC 2024-05-23"}, 1).task_success
+    missing_date = [{**base["observations"][0], "result": {"timezone": "UTC"}}]
+    assert not evaluate(case, base | {"observations": missing_date}, 1).task_success

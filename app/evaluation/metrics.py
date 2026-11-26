@@ -19,15 +19,16 @@ class Trajectory(TypedDict):
 _WORD = re.compile(r"(?<!\w)[+-]\d+(?:[.,]\d+)*|\w+(?:[.,]\d+)*")
 
 
-def tokens(value: str) -> tuple[str, ...]:
-    normalized = unicodedata.normalize("NFKC", value).casefold().replace("−", "-")
-    return tuple(_WORD.findall(normalized))
+def tokens(value: str, *, case_sensitive: bool = False) -> tuple[str, ...]:
+    normalized = unicodedata.normalize("NFKC", value).replace("−", "-")
+    return tuple(_WORD.findall(normalized if case_sensitive else normalized.casefold()))
 
 
-def contains_phrase(text: str, phrase: str) -> bool:
-    words, expected = tokens(text), tokens(phrase)
+def contains_phrase(text: str, phrase: str, *, case_sensitive: bool = False) -> bool:
+    words = tokens(text, case_sensitive=case_sensitive)
+    expected = tokens(phrase, case_sensitive=case_sensitive)
     if not expected:
-        return phrase.casefold() in text.casefold()
+        return phrase in text if case_sensitive else phrase.casefold() in text.casefold()
     size = len(expected)
     return any(words[index:index + size] == expected for index in range(len(words) - size + 1))
 

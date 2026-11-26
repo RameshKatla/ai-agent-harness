@@ -3,7 +3,9 @@
     "id": "arithmetic_product",
     "input": "What is 25 * 4?",
     "expected": "100",
-    "tools": ["calculator"],
+    "tools": [
+      "calculator"
+    ],
     "criteria": [],
     "max_steps": 3,
     "max_tool_calls": 1,
@@ -17,5 +19,213 @@
     "criteria": [],
     "max_steps": 1,
     "max_tool_calls": 0
+  },
+  {
+    "id": "arithmetic_addition",
+    "input": "Use the calculator to evaluate 18 + 27. Reply with the integer result.",
+    "expected": "45",
+    "tools": [
+      "calculator"
+    ],
+    "criteria": [],
+    "max_steps": 2,
+    "max_tool_calls": 1,
+    "max_retries": 0
+  },
+  {
+    "id": "arithmetic_subtraction",
+    "input": "Use the calculator to evaluate 84 - 29. Reply with the integer result.",
+    "expected": "55",
+    "tools": [
+      "calculator"
+    ],
+    "criteria": [],
+    "max_steps": 2,
+    "max_tool_calls": 1,
+    "max_retries": 0
+  },
+  {
+    "id": "arithmetic_negative",
+    "input": "Use the calculator to evaluate 8 - 23. Reply with the integer result.",
+    "expected": "-15",
+    "tools": [
+      "calculator"
+    ],
+    "criteria": [],
+    "max_steps": 2,
+    "max_tool_calls": 1,
+    "max_retries": 0
+  },
+  {
+    "id": "arithmetic_division",
+    "input": "Use the calculator to evaluate 72 // 8. Reply with the integer result.",
+    "expected": "9",
+    "tools": [
+      "calculator"
+    ],
+    "criteria": [],
+    "max_steps": 2,
+    "max_tool_calls": 1,
+    "max_retries": 0
+  },
+  {
+    "id": "arithmetic_modulo",
+    "input": "Use the calculator to evaluate 29 % 6. Reply with the integer result.",
+    "expected": "5",
+    "tools": [
+      "calculator"
+    ],
+    "criteria": [],
+    "max_steps": 2,
+    "max_tool_calls": 1,
+    "max_retries": 0
+  },
+  {
+    "id": "arithmetic_power",
+    "input": "Use the calculator to evaluate 3 ** 4. Reply with the integer result.",
+    "expected": "81",
+    "tools": [
+      "calculator"
+    ],
+    "criteria": [],
+    "max_steps": 2,
+    "max_tool_calls": 1,
+    "max_retries": 0
+  },
+  {
+    "id": "arithmetic_grouping",
+    "input": "Use the calculator to evaluate (6 + 4) * 7. Reply with the integer result.",
+    "expected": "70",
+    "tools": [
+      "calculator"
+    ],
+    "criteria": [],
+    "max_steps": 2,
+    "max_tool_calls": 1,
+    "max_retries": 0
+  },
+  {
+    "id": "arithmetic_precedence",
+    "input": "Use the calculator to evaluate 2 + 3 * 4. Reply with the integer result.",
+    "expected": "14",
+    "tools": [
+      "calculator"
+    ],
+    "criteria": [],
+    "max_steps": 2,
+    "max_tool_calls": 1,
+    "max_retries": 0
+  },
+  {
+    "id": "arithmetic_unary",
+    "input": "Use the calculator to evaluate (-8) * 6. Reply with the integer result.",
+    "expected": "-48",
+    "tools": [
+      "calculator"
+    ],
+    "criteria": [],
+    "max_steps": 2,
+    "max_tool_calls": 1,
+    "max_retries": 0
+  },
+  {
+    "id": "translation_spanish",
+    "input": "Translate hello to Spanish. Reply with the single Spanish word.",
+    "expected": "hola",
+    "tools": [],
+    "criteria": [],
+    "max_steps": 1,
+    "max_tool_calls": 0,
+    "max_retries": 0
+  },
+  {
+    "id": "uppercase",
+    "input": "Write the word orchard in uppercase.",
+    "expected": "ORCHARD",
+    "case_sensitive": true,
+    "tools": [],
+    "criteria": [],
+    "max_steps": 1,
+    "max_tool_calls": 0,
+    "max_retries": 0
+  },
+  {
+    "id": "reverse_list",
+    "input": "Reverse this list and reply in order: red, green, blue.",
+    "expected": "blue green red",
+    "tools": [],
+    "criteria": [],
+    "max_steps": 1,
+    "max_tool_calls": 0,
+    "max_retries": 0
+  },
+  {
+    "id": "extract_code",
+    "input": "From 'Ticket reference AZ42 was closed', return only the ticket reference.",
+    "expected": "AZ42",
+    "tools": [],
+    "criteria": [],
+    "max_steps": 1,
+    "max_tool_calls": 0,
+    "max_retries": 0
+  },
+  {
+    "id": "classify",
+    "input": "Is a dolphin a mammal or a fish? Reply with one word.",
+    "expected": "mammal",
+    "tools": [],
+    "criteria": [],
+    "max_steps": 1,
+    "max_tool_calls": 0,
+    "max_retries": 0
+  },
+  {
+    "id": "summarize",
+    "input": "Summarize in one sentence: The library closes Friday because of repairs. Keep the day and the reason.",
+    "expected": "Friday",
+    "tools": [],
+    "criteria": [
+      "library",
+      "repairs"
+    ],
+    "max_steps": 1,
+    "max_tool_calls": 0,
+    "max_retries": 0
+  },
+  {
+    "id": "language_fact",
+    "input": "What is the opposite of empty? Reply with one word.",
+    "expected": "full",
+    "tools": [],
+    "criteria": [],
+    "max_steps": 1,
+    "max_tool_calls": 0,
+    "max_retries": 0
+  },
+  {
+    "id": "datetime_utc",
+    "input": "Use the datetime tool for UTC. Reply with UTC followed by the current date in YYYY-MM-DD format from the tool.",
+    "expected": "UTC",
+    "tools": [
+      "datetime"
+    ],
+    "criteria": [],
+    "max_steps": 2,
+    "max_tool_calls": 1,
+    "max_retries": 0,
+    "answer_from_tool_field": "date"
+  },
+  {
+    "id": "datetime_tokyo",
+    "input": "Use the datetime tool for Asia/Tokyo. Reply with Tokyo followed by the current date in YYYY-MM-DD format from the tool.",
+    "expected": "Tokyo",
+    "tools": [
+      "datetime"
+    ],
+    "criteria": [],
+    "max_steps": 2,
+    "max_tool_calls": 1,
+    "max_retries": 0,
+    "answer_from_tool_field": "date"
   }
 ]

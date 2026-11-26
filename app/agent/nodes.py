@@ -67,8 +67,9 @@ class AgentNode:
                 decision = FinalDecision(action="final", answer=answer)
             else:
                 tools = self._registry.available(runtime.context["permissions"])
+                observations = [message.content for message in messages if message.role == "tool"]
                 decision = (await self._llm.structured_output(
-                    [tool_prompt(tools, state["retrieved_memories"]), *messages],
+                    [tool_prompt(tools, state["retrieved_memories"], observations), *messages],
                     decision_schema(tools), on_token=on_token if streaming else None,
                 )).decision
         except LLMError as error:

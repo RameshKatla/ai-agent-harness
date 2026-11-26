@@ -114,7 +114,7 @@ def format_report(report: EvaluationReport) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Evaluate the agent against a JSON dataset.")
-    parser.add_argument("--dataset", type=Path, default=Path("evals/agent_cases.json"))
+    parser.add_argument("--dataset", type=Path, default=Path(__file__).resolve().parents[2] / "evals" / "agent_cases.json")
     parser.add_argument("--persist", action="store_true", help="Use migrated PostgreSQL and save results.")
     parser.add_argument("--json", action="store_true", help="Print the full JSON report.")
     parser.add_argument("--min-success-rate", type=float, default=1.0)

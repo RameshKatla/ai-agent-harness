@@ -14,7 +14,22 @@ from app.schemas.evaluation import EvaluationCase, EvaluationMetrics
 
 class TaskSuccessEvaluator:
     def evaluate(self, case: EvaluationCase, trace: Trajectory) -> bool:
-        return trace["status"] == "completed" and contains_phrase(trace["final_answer"] or "", case.expected)
+        answer = trace["final_answer"] or ""
+        if trace["status"] != "completed" or not contains_phrase(
+            answer, case.expected, case_sensitive=case.case_sensitive,
+        ):
+            return False
+        if case.answer_from_tool_field is None:
+            return True
+        return any(
+            isinstance(value, str) and bool(value.strip()) and contains_phrase(
+                answer, value, case_sensitive=case.case_sensitive,
+            )
+            for observation in trace["observations"]
+            if observation["success"] and observation["tool"] in case.tools
+            and isinstance(observation["result"], dict)
+            for value in [observation["result"].get(case.answer_from_tool_field)]
+        )
 
 
 class AnswerQualityEvaluator:
@@ -22,7 +37,10 @@ class AnswerQualityEvaluator:
         if trace["status"] != "completed":
             return 0.0
         phrases = [case.expected, *case.criteria]
-        return fraction([contains_phrase(trace["final_answer"] or "", phrase) for phrase in phrases])
+        return fraction([
+            contains_phrase(trace["final_answer"] or "", phrase, case_sensitive=case.case_sensitive)
+            for phrase in phrases
+        ])
 
 
 class ToolSelectionEvaluator:

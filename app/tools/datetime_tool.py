@@ -16,7 +16,8 @@ async def current_datetime(arguments: DatetimeInput) -> dict[str, str]:
         zone = ZoneInfo(arguments.timezone)
     except (ValueError, ZoneInfoNotFoundError):
         raise ToolInputError("Use a valid IANA timezone such as America/New_York.") from None
-    return {"timezone": zone.key, "datetime": datetime.now(zone).isoformat()}
+    now = datetime.now(zone)
+    return {"timezone": zone.key, "datetime": now.isoformat(), "date": now.date().isoformat()}
 
 
 DATETIME = Tool(

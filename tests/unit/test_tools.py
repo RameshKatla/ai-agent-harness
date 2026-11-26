@@ -68,7 +68,9 @@ def test_tool_timeout():
 def test_datetime_returns_zoned_timestamp(arguments):
     result = asyncio.run(DATETIME.invoke(arguments))
     assert result["timezone"] == arguments.get("timezone", "UTC")
-    assert datetime.fromisoformat(result["datetime"]).utcoffset() is not None
+    timestamp = datetime.fromisoformat(result["datetime"])
+    assert timestamp.utcoffset() is not None
+    assert result["date"] == timestamp.date().isoformat()
 
 
 def test_datetime_rejects_invalid_timezone():

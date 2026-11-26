@@ -15,6 +15,8 @@ class EvaluationCase(BaseModel):
     id: Annotated[Phrase, Field(max_length=255)]
     input: Phrase
     expected: Phrase
+    case_sensitive: bool = False
+    answer_from_tool_field: Phrase | None = None
     tools: list[Phrase] = Field(default_factory=list)
     criteria: list[Phrase] = Field(default_factory=list)
     expected_memories: list[Phrase] = Field(default_factory=list)

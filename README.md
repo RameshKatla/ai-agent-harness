@@ -242,16 +242,17 @@ resumption. Start a fresh run after a restart.
 
 ## Phase 11 evaluation
 
-Run the starter dataset with an installed Ollama model.
+Run the regression dataset with an installed Ollama model.
 
 ```sh
-OLLAMA_MODEL=gemma4:e4b python -m app.evaluation.runner
+OLLAMA_MODEL=gemma4:e4b python scripts/run_evals.py
 ```
 
 Each JSON case specifies the task, an expected answer phrase, ordered tool
-calls, and optional required answer phrases, expected memories, and efficiency
-limits. Scoring is deterministic. A case passes when the answer, trajectory,
-tools, memory, and each configured limit meet the case expectations. The
+calls, and optional required answer phrases, case sensitivity, expected memories,
+and efficiency limits. A case passes when the answer, trajectory, tools, memory,
+and each configured limit meet the case expectations. A case can also require
+the answer to include a value from a successful tool observation. The
 reported aggregate averages the component scores and is independent of the
 pass rate. Use `--json` for per-case metrics and `--min-success-rate 0.9` to
 set a process exit threshold. The default threshold is 100%.
@@ -259,5 +260,8 @@ set a process exit threshold. The default threshold is 100%.
 Use `--persist` with a migrated PostgreSQL database to save the evaluated runs
 and their scores. Run under a dedicated `API_USER_ID` to isolate evaluation
 data from regular interactions. Retrieve that user's results with authenticated
-`GET /evaluations?limit=20&offset=0`. The larger regression dataset is planned
-for Phase 12.
+`GET /evaluations?limit=20&offset=0`.
+
+The Phase 12 dataset includes 20 cases covering direct answers, calculator
+operations, and timezone lookups. The pytest suite separately checks weather
+reasoning against a fixed forecast.
