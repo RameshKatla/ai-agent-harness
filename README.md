@@ -293,3 +293,43 @@ a test server and run:
 ```sh
 RUN_REDIS_TESTS=1 python -m pytest tests/integration/test_redis.py
 ```
+
+## Phase 14 Docker Compose
+
+Install Docker Engine with the Docker Compose v2 plugin, or Docker Desktop.
+The stack runs Ollama in a separate container. Allocate enough memory for
+your chosen chat and embedding models when using Docker Desktop.
+
+```sh
+cp -n .env.example .env
+# Set POSTGRES_PASSWORD and API_TOKEN in .env before starting.
+docker compose up --build -d
+docker compose ps -a
+curl -fsS http://127.0.0.1:8000/ready
+```
+
+Compose waits for healthy PostgreSQL, Redis, and Ollama services. The
+`migrate` job applies Alembic migrations. The `ollama-models` job pulls any
+missing chat and embedding models. Both jobs must finish before the API
+starts, and they normally appear as exited with code 0. The first start can
+take longer while the models download. Use `docker compose logs ollama-models`
+to check progress. Compose defaults to Ollama's published `gemma4:e4b` tag
+and `nomic-embed-text`. Set `OLLAMA_MODEL` to select another available model.
+
+Only the API is published to the host, on `127.0.0.1:8000` by default. Set
+`API_PORT` to change the host port. PostgreSQL, Redis, and Ollama use named
+volumes for data and models. `docker compose down` keeps those volumes.
+
+With the same `API_TOKEN` available to your shell or in `.env`, run the
+smoke test against the running stack:
+
+```sh
+RUN_COMPOSE_TESTS=1 python -m pytest tests/integration/test_compose.py
+```
+
+The Docker API image includes the evaluation runner. To run the live
+regression dataset inside the stack:
+
+```sh
+docker compose exec api python scripts/run_evals.py
+```
