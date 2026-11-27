@@ -17,8 +17,7 @@ async def health() -> HealthResponse:
 
 @router.get("/ready", responses={503: {"model": HealthResponse}})
 async def ready(request: Request, response: Response) -> HealthResponse:
-    redis = request.app.state.redis_services if request.app.state.settings.redis_enabled else None
-    if redis is not None and not await redis.ready():
+    if not await request.app.state.readiness.ready():
         response.status_code = 503
         return HealthResponse(status="unavailable")
     return HealthResponse(status="ready")

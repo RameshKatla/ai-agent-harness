@@ -43,7 +43,10 @@ def test_unavailable_redis_blocks_protected_requests_but_keeps_liveness(monkeypa
 
 @pytest.mark.external
 @requires_redis
-def test_rate_limit_is_shared_by_api_instances_and_scoped_by_user():
+def test_rate_limit_is_shared_by_api_instances_and_scoped_by_user(monkeypatch):
+    monkeypatch.setattr("app.main.postgres_ready", AsyncMock(return_value=True))
+    monkeypatch.setattr("app.main.ollama_ready", AsyncMock(return_value=True))
+
     settings = Settings(
         redis_enabled=True, api_token="redis-test", api_user_id="first",
         redis_key_prefix=f"redis-test-{uuid4()}", rate_limit_requests=2, rate_limit_window_seconds=2,

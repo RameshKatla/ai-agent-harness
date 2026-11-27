@@ -216,7 +216,7 @@ Use environment variables.
 Required variables:
 
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=gemma4:4b
+OLLAMA_MODEL=gemma4:e4b
 
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
@@ -259,7 +259,7 @@ Do not hard-code the model throughout the project.
 
 The default development model is:
 
-gemma4:4b
+gemma4:e4b
 
 ---
 

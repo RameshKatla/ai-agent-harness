@@ -106,6 +106,11 @@ def test_http_stream_returns_ordered_trajectory_and_persists_the_run():
         assert events[8]["metadata"]["observation"]["result"] == 100
         assert events[-1]["metadata"]["run"]["final_answer"] == "100"
         assert repo.save.await_args.args[1].model_dump(mode="json") == events[-1]["metadata"]["run"]
+        recorded = repo.save.await_args.kwargs["events"]
+        assert [item.event for item in recorded] == [
+            event["event"] for event in events if event["event"] != "llm_token"
+        ]
+        assert all(not item.metadata for item in recorded)
 
     asyncio.run(exercise())
 

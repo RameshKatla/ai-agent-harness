@@ -14,7 +14,7 @@ from app.core.config import Settings
 from app.core.exceptions import ApprovalConflictError
 from app.llm.model import ChatMessage, LLMClient
 from app.memory.manager import MemoryManager
-from app.memory.short_term import ShortTermMemory, conversation_key
+from app.memory.short_term import PostgresShortTermMemory, ShortTermMemory, conversation_key
 from app.observability.events import RunEvents
 from app.tools.registry import ToolRegistry
 
@@ -23,10 +23,11 @@ class AgentExecutor:
     def __init__(
         self, settings: Settings, llm: LLMClient, registry: ToolRegistry | None = None,
         *, memory: MemoryManager | None = None,
+        short_term: ShortTermMemory | PostgresShortTermMemory | None = None,
     ) -> None:
         self._settings = settings
         policies = PolicyEngine(settings, registry if registry is not None else ToolRegistry())
-        self._memory = ShortTermMemory()
+        self._memory = short_term if short_term is not None else ShortTermMemory()
         self._graph = build_graph(llm, policies, registry, self._memory.checkpointer, memory)
 
     def _config(self, key: str) -> RunnableConfig:

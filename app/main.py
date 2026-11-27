@@ -1,6 +1,7 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
+from functools import partial
 
 import httpx
 from fastapi import FastAPI
@@ -12,6 +13,7 @@ from app.agent.executor import AgentExecutor
 from app.agent.service import AgentService
 from app.api.errors import ErrorResponse, agent_error, http_error, validation_error
 from app.api.middleware import RequestSecurityMiddleware
+from app.api.readiness import Readiness, ollama_ready, postgres_ready
 from app.api.routes_agent import router as agent_router
 from app.api.routes_evaluation import router as evaluation_router
 from app.api.routes_health import router as health_router
@@ -25,6 +27,7 @@ from app.db.repositories import AgentRunRepository, EvaluationRepository
 from app.llm.ollama_client import OllamaLLM
 from app.memory.manager import MemoryManager
 from app.memory.semantic import OllamaEmbedder
+from app.memory.short_term import PostgresShortTermMemory
 from app.observability.logging import configure_logging
 from app.tools import BUILTIN_PERMISSIONS, build_tool_registry
 
@@ -45,6 +48,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if redis is not None:
                 stack.push_async_callback(redis.close)
             http = await stack.enter_async_context(httpx.AsyncClient())
+            probes = [partial(postgres_ready, engine), partial(ollama_ready, config, http)]
+            if redis is not None:
+                probes.append(redis.ready)
+            app.state.readiness = Readiness(*probes)
             llm = OllamaLLM(config, http)
             memory = MemoryManager.using_database(
                 config, engine, OllamaEmbedder(config, http), llm,
@@ -52,7 +59,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             registry = build_tool_registry(
                 http, cache=redis, weather_cache_ttl=config.weather_cache_ttl_seconds,
             )
-            executor = AgentExecutor(config, llm, registry, memory=memory)
+            short_term = await stack.enter_async_context(PostgresShortTermMemory.connect(config))
+            executor = AgentExecutor(config, llm, registry, memory=memory, short_term=short_term)
             app.state.memory_manager = memory
             sessions = async_sessionmaker(engine)
             app.state.agent_service = AgentService(

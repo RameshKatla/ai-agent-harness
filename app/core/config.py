@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", frozen=True, hide_input_in_errors=True)
 
     ollama_base_url: AnyHttpUrl = Field(default=AnyHttpUrl("http://localhost:11434"), repr=False)
-    ollama_model: Annotated[str, Field(min_length=1)] = "gemma4:4b"
+    ollama_model: Annotated[str, Field(min_length=1)] = "gemma4:e4b"
     ollama_embedding_model: Annotated[str, Field(min_length=1)] = "nomic-embed-text"
     postgres_host: str = "localhost"
     postgres_port: Annotated[int, Field(ge=1, le=65535)] = 5432

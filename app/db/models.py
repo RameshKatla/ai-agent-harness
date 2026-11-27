@@ -34,11 +34,15 @@ class Message(Base, Timestamped):
     __tablename__ = "messages"
     __table_args__ = (ForeignKeyConstraint(
         ["user_id", "thread_id"], ["threads.user_id", "threads.id"], ondelete="CASCADE"
-    ),)
+    ), UniqueConstraint("run_id", "position", name="uq_messages_run_position"))
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[str] = mapped_column(String(255))
     thread_id: Mapped[str] = mapped_column(String(255))
+    run_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("agent_runs.id", ondelete="CASCADE", name="fk_messages_run_id")
+    )
+    position: Mapped[int | None]
     role: Mapped[str] = mapped_column(String(32))
     content: Mapped[str] = mapped_column(Text)
 

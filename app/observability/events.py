@@ -36,13 +36,14 @@ EventSink = Callable[[AgentEvent], Awaitable[None]]
 class RunEvents:
     def __init__(
         self, run_id: UUID, thread_id: str, user_id: str, sink: EventSink | None,
-        *, observer: EventSink | None = None,
+        *, observer: EventSink | None = None, record: bool = False,
     ) -> None:
         self.run_id = run_id
         self.thread_id = thread_id
         self.user_id = user_id
         self._sink = sink
         self._observer = observer
+        self.records: list[AgentEvent] | None = [] if record else None
         self._sequence = 0
         self._step = 0
 
@@ -54,6 +55,7 @@ class RunEvents:
         self, event: EventName, *, node: str, step: int | None = None, tool: str | None = None,
         latency_ms: float | None = None, success: bool | None = None, error: str | None = None,
         metadata: dict[str, JsonValue] | None = None,
+        before_delivery: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         item = AgentEvent(
             run_id=self.run_id, thread_id=self.thread_id, user_id=self.user_id,
@@ -61,6 +63,10 @@ class RunEvents:
             step=self._step if step is None else step, node=node, tool=tool, latency_ms=latency_ms, success=success,
             error=error, metadata=metadata if metadata is not None else {},
         )
+        if self.records is not None and event != "llm_token":
+            self.records.append(item.model_copy(update={"metadata": {}, "error": None}))
+        if before_delivery is not None:
+            await before_delivery()
         if self._sink is not None:
             await self._sink(item)
         self._sequence = item.sequence

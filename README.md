@@ -53,11 +53,8 @@ ollama pull nomic-embed-text
 ollama list
 ```
 
-Both the environment template and Compose use `gemma4:e4b`. Set
-`OLLAMA_MODEL` to an installed tag if you use another model. The fallback
-`gemma4:4b` in the Python settings comes from the project specification.
-Use the environment template or an explicit override to select the published
-tag. [Gemma 4 tags](https://ollama.com/library/gemma4/tags)
+Python, the environment template, and Compose default to `gemma4:e4b`.
+Set `OLLAMA_MODEL` to an installed tag if you use another model. [Gemma 4 tags](https://ollama.com/library/gemma4/tags)
 
 ### Install Python dependencies and start the API
 
@@ -174,7 +171,8 @@ curl -fsS -X DELETE "$API_URL/memory/$MEMORY_ID" \
 
 ### Health and error responses
 
-`GET /health` checks HTTP liveness. `GET /ready` checks Redis when enabled.
+`GET /health` checks HTTP liveness. `GET /ready` checks PostgreSQL, the configured Ollama models,
+and Redis when enabled.
 Both endpoints are public. The API returns a server-generated
 `X-Request-ID` and records it in structured logs. HTTP errors return
 `code`, `detail`, and `request_id`. Validation issues report the source and
@@ -219,10 +217,10 @@ consumers can subscribe by user and thread through `RedisServices.subscribe()`.
 
 ## Memory and persistence
 
-- **Short-term conversation memory** uses process-local LangGraph checkpoints
+- **Short-term conversation memory** uses PostgreSQL-backed LangGraph checkpoints
   scoped by user and thread. Only completed exchanges enter the follow-up
-  history. A restart clears that history and prevents resuming pending
-  approvals. Keep a paused run on the issuing process.
+  history. Checkpoints allow follow-ups and pending approvals to survive
+  API restarts. PostgreSQL locks serialize turns on a thread across workers.
 - **Episodic memory** stores the task, actions, result, and outcome when a
   run reaches its save step.
 - **Semantic memory** stores explicit entries and standalone preference
@@ -231,8 +229,10 @@ consumers can subscribe by user and thread through `RedisServices.subscribe()`.
   user-scoped cosine similarity and only compares vectors from the same
   embedding model. Re-embed existing entries before switching models.
 
-PostgreSQL stores durable runs, episodes, semantic memory, and saved
-evaluations. Thread lookup remains available after an API restart.
+PostgreSQL stores runs, messages, tool calls, episodes, semantic memory, and
+saved evaluations. It also stores lifecycle event summaries and audit entries
+for run completion and approval activity. Detailed SSE fragments remain live
+only. Thread lookup remains available after an API restart.
 
 ## Evaluation
 
@@ -291,5 +291,13 @@ The base Compose file keeps those ports internal.
 | A protected route returns HTTP 401 | Check that the bearer token matches the API's `API_TOKEN` |
 | `/ready` or a protected route returns HTTP 503 | Check Redis, database access, and whether `API_TOKEN` is configured. Use the error code and `X-Request-ID` to find the request in logs |
 | A request returns HTTP 429 | Wait for the interval in the `Retry-After` header, or inspect the configured per-user limit |
-| A paused run cannot resume after a restart | Start a new run. The pending approval uses the original process's checkpoint |
+| An approval returns HTTP 409 | Fetch the thread and use its current pending approval ID |
 | Weather results are unavailable | Verify outbound HTTPS access to Open-Meteo |
+
+## Continuous integration and license
+
+GitHub Actions runs the standard suite and PostgreSQL and Redis integration
+tests on Python 3.12. The Ollama and Compose tests can be run locally using
+the opt-in flags above.
+
+The project is distributed under the [MIT License](LICENSE).

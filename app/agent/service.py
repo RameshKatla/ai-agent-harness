@@ -25,7 +25,7 @@ class AgentService:
     async def run(
         self, *, user_id: str, thread_id: str | None, task: str, permissions: Collection[str],
     ) -> AgentRunResponse:
-        events = RunEvents(uuid4(), thread_id or str(uuid4()), user_id, sink=None, observer=self._observer)
+        events = RunEvents(uuid4(), thread_id or str(uuid4()), user_id, sink=None, observer=self._observer, record=True)
         return await self._run(events, task, permissions)
 
     async def _run(
@@ -41,10 +41,16 @@ class AgentService:
 
     async def _publish(
         self, events: RunEvents, state: AgentState, started: float,
+        *, approval: tuple[UUID, bool] | None = None,
     ) -> AgentRunResponse:
         finished_at = datetime.now(UTC)
         response = AgentRunResponse.model_validate(state)
-        await self._runs.save(events.user_id, response, finished_at=finished_at)
+        async def persist() -> None:
+            await self._runs.save(
+                events.user_id, response, finished_at=finished_at,
+                events=events.records or [], approval=approval,
+            )
+
         if response.pending_approval is not None:
             pending = response.pending_approval
             await events.emit(
@@ -53,6 +59,7 @@ class AgentService:
                     "approval_id": pending["approval_id"], "arguments": pending["arguments"],
                     "run": response.model_dump(mode="json"),
                 },
+                before_delivery=persist,
             )
             return response
         if response.error is not None:
@@ -65,6 +72,7 @@ class AgentService:
             success=response.status == "completed", latency_ms=(perf_counter() - started) * 1000,
             metadata={"status": response.status, "run": response.model_dump(mode="json")}
             if events.streaming else {"status": response.status},
+            before_delivery=persist,
         )
         return response
 
@@ -72,7 +80,7 @@ class AgentService:
         self, *, user_id: str, thread_id: str | None, task: str, permissions: Collection[str],
     ) -> AsyncGenerator[AgentEvent | None, None]:
         queue: asyncio.Queue[AgentEvent | None] = asyncio.Queue(maxsize=32)
-        events = RunEvents(uuid4(), thread_id or str(uuid4()), user_id, queue.put, observer=self._observer)
+        events = RunEvents(uuid4(), thread_id or str(uuid4()), user_id, queue.put, observer=self._observer, record=True)
 
         async def produce() -> None:
             try:
@@ -115,13 +123,13 @@ class AgentService:
             if await self._runs.latest(user_id, thread_id) is None:
                 return None
             raise ApprovalConflictError("This approval is no longer pending.")
-        events = RunEvents(UUID(state["run_id"]), thread_id, user_id, sink=None, observer=self._observer)
+        events = RunEvents(UUID(state["run_id"]), thread_id, user_id, sink=None, observer=self._observer, record=True)
         started = perf_counter()
         result = await self._executor.resume(
             thread_id=thread_id, user_id=user_id, approval_id=str(approval_id),
             approved=approved, permissions=permissions, events=events,
         )
-        return await self._publish(events, result, started)
+        return await self._publish(events, result, started, approval=(approval_id, approved))
 
     async def get_thread(self, *, user_id: str, thread_id: str) -> AgentRunResponse | None:
         pending = await self._executor.pending(user_id=user_id, thread_id=thread_id)

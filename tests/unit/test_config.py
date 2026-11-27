@@ -39,3 +39,8 @@ def test_secret_bearing_ollama_url_is_rejected_without_echoing_credentials():
         Settings(_env_file=None, ollama_base_url="http://user:private-password@ollama.test/")
     assert "private-password" not in str(failure.value)
     assert "cannot include credentials" in str(failure.value)
+
+
+def test_default_model_matches_setup(monkeypatch):
+    monkeypatch.delenv("OLLAMA_MODEL", raising=False)
+    assert Settings(_env_file=None).ollama_model == "gemma4:e4b"
